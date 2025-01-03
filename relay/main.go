@@ -98,8 +98,9 @@ func (server *commServer) reader(conn *websocket.Conn) {
 }
 
 func (server *commServer) clientHandler(w http.ResponseWriter, r *http.Request) {
+
 	token := string(r.URL.Query().Get("token"))
-	fmt.Println("GET params were:", r.URL.Query())
+
 	if _, ok := ApprovedTokens[token]; !ok {
 		if !(validateClientToken(token)) {
 			fmt.Println("Failed to ValidateClientToken!")
@@ -113,11 +114,11 @@ func (server *commServer) clientHandler(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		log.Println(err)
 	}
-	// fmt.Println()
-	log.Printf("Client %+v Connected", r.URL.Query().Get("token"))
+
+	log.Printf("Client %+v Connected", token)
 
 	client := &memberClient{
-		token:    string(r.URL.Query().Get("token")),
+		token:    token,
 		socket:   ws,
 		messages: make(chan []byte),
 	}
