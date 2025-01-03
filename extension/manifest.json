@@ -1,0 +1,21 @@
+{
+    "manifest_version": 3,
+    "name": "Torn-Helper Extension",
+    "description": "Extension for Torn-Helper",
+    "version": "1.0",
+    "icons": {
+        "16": "images/icon-16.png",
+        "32": "images/icon-32.png",
+        "128": "images/icon-128.png"
+    },
+    "action": {
+      "default_popup": "pages/settings/settings.html",
+      "default_icon": "images/icon-32.png"
+    },
+    "background": {
+      "service_worker": "service-worker.js"
+    },
+    "permissions": [
+    "storage"
+    ]
+}
