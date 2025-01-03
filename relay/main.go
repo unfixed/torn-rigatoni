@@ -141,7 +141,7 @@ func (server *commServer) clientHandler(w http.ResponseWriter, r *http.Request) 
 }
 
 func validateClientToken(token string) bool {
-	fmt.Printf("Validating %s", token)
+
 	URL := fmt.Sprintf("https://api.torn.com/v2/user?key=%s", token)
 	response, err_getUrl := http.Get(URL)
 	if err_getUrl != nil {
@@ -161,11 +161,9 @@ func validateClientToken(token string) bool {
 		log.Println(err_unmarshal)
 		return false
 	}
-	fmt.Println(data.Faction.FactionID)
-	if data.Faction.FactionID == 46708 {
-		return true
-	}
-	return false
+
+	return data.Faction.FactionID == 46708
+
 }
 
 func setupRoutes(server *commServer) {
