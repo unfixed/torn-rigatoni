@@ -1,14 +1,12 @@
 
-
-
 async function connect() {
   const token = await getTornApiToken();
-  webSocket = new WebSocket(`http://localhost:8080/ws?token=${token}`);
-  // webSocket = new WebSocket("https://localhost:8080/ws?token=IC9JVltgei13QBTa", null, null, null, {rejectUnauthorized: false});
-
+  // webSocket = new WebSocket(`https://ws.rigatoni.duckdns.org/ws?token=${token.tornApiKey}`);
+  webSocket = new WebSocket(`http://localhost:8080/ws?token=${token.tornApiKey}`);
   
   webSocket.onopen = (event) => {
     console.log('websocket open');
+    backoff = 50;
     keepAlive();
     // mesgServer("client");
     queryFaction();
@@ -31,14 +29,19 @@ async function connect() {
 
   webSocket.onclose = (event) => {
     console.log('websocket connection closed');
+    if (backoff < 32000) {
+      backoff = backoff*2;
+      console.log(`Backoff value increased to ${backoff}`);
+    };
     setTimeout(function() {
       connect();
-    }, 1000);
+    }, backoff);
   };
 
 }
 var webSocket = null
 var memberList = {};
+var backoff = 50;
 getMemberList();
 connect();
 // var query =  setInterval(queryFaction, 10500);
@@ -71,9 +74,9 @@ async function mesgServer(message) {
     const payload = await encapsulateMesg(await getTornApiToken(), message)
     await webSocket.send(payload)
   }
-  else {
-    webSocket = new WebSocket("http://localhost:8080/ws");
-  }
+  // else {
+  //   webSocket = new WebSocket("http://localhost:8080/ws");
+  // }
 }
 
 async function encapsulateMesg(token, message) {
@@ -144,7 +147,7 @@ async function processFaction(data) {
     else{ 
       console.log("updating "+(data[i])["id"]);
       updateMember(data[i]);
-      mesgServer(JSON.stringify(data[i]));
+      mesgServer(data[i]);
     }
     checkRoster(memberRoster);
   };
