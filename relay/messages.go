@@ -1,8 +1,8 @@
 package main
 
 type MessageUpdate struct {
-	SourceToken string
-	Message     FactionMemberUpdate
+	SourceToken string              `json:"SourceToken"`
+	Message     FactionMemberUpdate `json:"Message"`
 }
 
 type FactionMemberUpdate struct {

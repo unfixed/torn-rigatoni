@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"slices"
@@ -69,14 +70,17 @@ func (server *commServer) reader(conn *websocket.Conn) {
 		}
 
 		var data MessageUpdate
-		json.Unmarshal(p, &data)
-		// fmt.Println(string(data.Message.Name))
+		err_unmarshal := json.Unmarshal(p, &data)
+		if err_unmarshal != nil {
+			fmt.Println("Error:", err_unmarshal)
+		}
 
 		payload, err := json.Marshal(data.Message)
 		if err != nil {
 			log.Fatal(err)
 		}
 		fmt.Printf("There are currently %d clients connected\n", len(server.memberClients))
+		fmt.Println(string(payload))
 		for client := range server.memberClients {
 			if client.token == data.SourceToken {
 				fmt.Println("update was from self")
@@ -90,16 +94,19 @@ func (server *commServer) reader(conn *websocket.Conn) {
 
 		}
 
-		// if err := conn.WriteMessage(messageType, p); err != nil {
-		// 	fmt.Println("Failed to Write to client")
-		// 	log.Println(err)
-		// 	return
-		// }
-
 	}
 }
 
 func (server *commServer) clientHandler(w http.ResponseWriter, r *http.Request) {
+	token := string(r.URL.Query().Get("token"))
+	fmt.Println("GET params were:", r.URL.Query())
+	if _, ok := ApprovedTokens[token]; !ok {
+		if !(validateClientToken(token)) {
+			fmt.Println("Failed to ValidateClientToken!")
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+	}
 
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 	ws, err := upgrader.Upgrade(w, r, nil)
@@ -107,16 +114,13 @@ func (server *commServer) clientHandler(w http.ResponseWriter, r *http.Request) 
 		log.Println(err)
 	}
 	// fmt.Println()
-	log.Printf("Client %s Connected", r.URL.Query().Get("token"))
+	log.Printf("Client %+v Connected", r.URL.Query().Get("token"))
 
 	client := &memberClient{
-		token:    r.URL.Query().Get("token"),
+		token:    string(r.URL.Query().Get("token")),
 		socket:   ws,
 		messages: make(chan []byte),
 	}
-	//check if client exists
-	// if server.memberClients
-	fmt.Println("Validate Client Here")
 
 	keys := make([]string, 0, len(server.memberClients))
 	for key := range server.memberClients {
@@ -135,10 +139,40 @@ func (server *commServer) clientHandler(w http.ResponseWriter, r *http.Request) 
 
 }
 
+func validateClientToken(token string) bool {
+	fmt.Printf("Validating %s", token)
+	URL := fmt.Sprintf("https://api.torn.com/v2/user?key=%s", token)
+	response, err_getUrl := http.Get(URL)
+	if err_getUrl != nil {
+		log.Println(err_getUrl)
+		return false
+	}
+
+	responseBody, err_read_responseBody := io.ReadAll(response.Body)
+	if err_read_responseBody != nil {
+		log.Println(err_read_responseBody)
+		return false
+	}
+
+	var data TornPlayer
+	err_unmarshal := json.Unmarshal(responseBody, &data)
+	if err_unmarshal != nil {
+		log.Println(err_unmarshal)
+		return false
+	}
+	fmt.Println(data.Faction.FactionID)
+	if data.Faction.FactionID == 46708 {
+		return true
+	}
+	return false
+}
+
 func setupRoutes(server *commServer) {
 	http.HandleFunc("/", homePage)
 	http.HandleFunc("/ws", server.clientHandler)
 }
+
+var ApprovedTokens map[string]struct{}
 
 func main() {
 	fmt.Println("Hello World")
