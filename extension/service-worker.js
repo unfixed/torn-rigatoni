@@ -1,8 +1,8 @@
 
 async function connect() {
   const token = await getTornApiToken();
-  // webSocket = new WebSocket(`https://ws.rigatoni.duckdns.org/ws?token=${token.tornApiKey}`);
-  webSocket = new WebSocket(`http://localhost:8080/ws?token=${token.tornApiKey}`);
+  webSocket = new WebSocket(`https://ws.rigatoni.duckdns.org/ws?token=${token.tornApiKey}`);
+  // webSocket = new WebSocket(`http://localhost:8080/ws?token=${token.tornApiKey}`);
   
   webSocket.onopen = (event) => {
     console.log('websocket open');
@@ -13,18 +13,10 @@ async function connect() {
   };
 
   webSocket.onmessage = (event) => {
-    // console.log(`websocket received message: ${event.data}`);
     let data = JSON.parse(event.data);
-
-    if ('Message' in data) {
-      let payload = JSON.parse(data.Message)
-      console.log(payload)
-      if (event.data.length > 10) {
-        processUpdate(payload);
-      }
-      
+    if ('id' in data) {
+      processUpdate(data);
     }
-    
   };
 
   webSocket.onclose = (event) => {
