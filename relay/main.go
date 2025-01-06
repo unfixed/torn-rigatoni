@@ -13,8 +13,9 @@ import (
 )
 
 type commServer struct {
-	syncMutex     sync.Mutex
-	memberClients map[*memberClient]struct{}
+	syncMutex       sync.Mutex
+	memberClients   map[*memberClient]struct{}
+	clientTokenList []string
 }
 
 func newCommServer() *commServer {
@@ -28,12 +29,21 @@ func newCommServer() *commServer {
 func (server *commServer) addClient(client *memberClient) {
 	server.syncMutex.Lock()
 	server.memberClients[client] = struct{}{}
+	server.clientTokenList = append(server.clientTokenList, client.token)
 	server.syncMutex.Unlock()
 }
 
 func (server *commServer) removeClient(client *memberClient) {
 	server.syncMutex.Lock()
 	delete(server.memberClients, client)
+
+	for i, value := range server.clientTokenList {
+		if value == client.token {
+			server.clientTokenList = append(server.clientTokenList[:i], server.clientTokenList[i+1:]...)
+			break
+		}
+	}
+
 	server.syncMutex.Unlock()
 }
 
@@ -63,9 +73,39 @@ func (server *commServer) reader(conn *websocket.Conn) {
 			return
 		}
 		// print out that message for clarity
-		fmt.Printf("messageRecieved:    %s\n", string(p))
+		fmt.Printf("messageReceived:    %s\n", string(p))
 
 		if string(p) == "keepalive" {
+			// continue
+
+			i := -1
+			for client, _ := range server.memberClients {
+				if client.socket == conn {
+					for index, value := range server.clientTokenList {
+						if value == client.token {
+							fmt.Println(index)
+							i = index
+						}
+					}
+
+				}
+			}
+			if i < 0 {
+				continue
+			}
+
+			data := ClientOffset{
+				NumberOfClients: len(server.memberClients),
+				Index:           i,
+			}
+			payload, err := json.Marshal(data)
+			if err != nil {
+				log.Fatal(err)
+			}
+			if err := conn.WriteMessage(messageType, payload); err != nil {
+				log.Printf("error: %s", err)
+			}
+			// fmt.Println(data)
 			continue
 		}
 

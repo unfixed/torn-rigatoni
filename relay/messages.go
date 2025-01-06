@@ -1,8 +1,8 @@
 package main
 
 type MessageUpdate struct {
-	SourceToken string              `json:"SourceToken"`
-	Message     FactionMemberUpdate `json:"Message"`
+	SourceToken string                `json:"SourceToken"`
+	Message     []FactionMemberUpdate `json:"Message"`
 }
 
 type FactionMemberUpdate struct {
@@ -32,4 +32,9 @@ type FactionMemberStatus struct {
 type FactionMemberLife struct {
 	Current int `json:"current"`
 	Maximum int `json:"maximum"`
+}
+
+type ClientOffset struct {
+	NumberOfClients int
+	Index           int
 }
