@@ -14,6 +14,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+
+  if (message === 'get-clients') {
+    sendResponse(numClients);
+  }
+});
+
 async function getTornApiToken() {
   return (await chrome.storage.local.get('tornApiKey'))["tornApiKey"];
 }

@@ -51,6 +51,15 @@ async function getUpdates() {
         
     });
     
+    chrome.runtime.sendMessage('get-clients', (clients) => {
+        // console.log (targets)
+
+        const element = document.getElementById(`clients-connected`);
+        element.textContent = `${clients} Clients Connected to Relay (~${32/clients}s update interval)`;
+        
+    });
+
+
     // console.timeEnd("getUpdates");
 }
 
