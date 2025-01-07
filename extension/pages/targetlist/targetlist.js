@@ -82,7 +82,8 @@ async function createMemberUiObject(memberid,data) {
 
         const newTargetLinkElement = document.createElement("a");
         newTargetLinkElement.href = `https://www.torn.com/profiles.php?XID=${memberid}`;
-    
+        newTargetLinkElement.target = "_blank";
+
         const newTargetStateElement = document.createElement("div");
         newTargetStateElement.id = `id-${memberid}-state`;
         newTargetStateElement.textContent = data["state"];
