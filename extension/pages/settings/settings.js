@@ -43,6 +43,7 @@ async function saveSettings() {
         document.getElementById("TornKey-Required").classList.remove("hidden");
         chrome.storage.local.set({ "Enabled": false });
     } else {
+        chrome.runtime.sendMessage('get-targets');
         let enabler = document.getElementById("Torn-Enable");
         enabler.disabled = false;
         document.getElementById("TornKey-Required").classList.add("hidden");

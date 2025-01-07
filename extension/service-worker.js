@@ -18,16 +18,20 @@ chrome.runtime.onInstalled.addListener(function (object) {
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-
   if (message === 'get-targets') {
     sendResponse(memberList);
   }
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-
   if (message === 'get-clients') {
     sendResponse(numClients);
+  }
+});
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message === 'reset-backoff') {
+    backoff = 50;
   }
 });
 
