@@ -13,7 +13,6 @@ chrome.runtime.onInstalled.addListener(function (object) {
 
   if (object.reason === chrome.runtime.OnInstalledReason.INSTALL) {
       chrome.tabs.create({ url: internalUrl }, function (tab) {
-          console.log("New tab launched with http://yoursite.com/");
       });
   }
 });
@@ -52,7 +51,6 @@ async function connect() {
     if (Array.isArray(data)) {
       processUpdate(data, data.is_target);
     } else if ('NumberOfClients' in data) {
-      console.log(data)
       index = data["Index"];
       numClients = data["NumberOfClients"];
     }
@@ -109,7 +107,6 @@ async function encapsulateMesg(token, message) {
 }
 
 async function queryWar() {
-  console.log("queryWar")
   const result = await (chrome.storage.local.get('tornApiKey'));
   fetch("https://api.torn.com/v2/faction/48040/wars?key="+result.tornApiKey)
     .then(response => {
