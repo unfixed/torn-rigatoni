@@ -1,5 +1,6 @@
 var webSocket = null
 var memberList = {};
+var targetList = {};
 var backoff = 50;
 
 var index = 0;
@@ -18,20 +19,14 @@ chrome.runtime.onInstalled.addListener(function (object) {
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message === 'get-targets') {
-    sendResponse(memberList);
-  }
-});
-
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message === 'get-clients') {
-    sendResponse(numClients);
-  }
-});
-
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message === 'reset-backoff') {
     backoff = 50;
+  } else if (message === 'get-targets') {
+    sendResponse(targetList);
+  } else if (message === 'get-members') {
+    sendResponse(memberList);
+  } else if (message === 'get-clients') {
+    sendResponse(numClients);
   }
 });
 
@@ -48,13 +43,14 @@ async function connect() {
     backoff = 50;
     keepAlive();
     queryFaction();
+    queryWar();
   };
 
   webSocket.onmessage = (event) => {
     let data = JSON.parse(event.data);
 
     if (Array.isArray(data)) {
-      processUpdate(data);
+      processUpdate(data, data.is_target);
     } else if ('NumberOfClients' in data) {
       console.log(data)
       index = data["Index"];
@@ -97,7 +93,6 @@ function keepAlive() {
   );
 }
 
-
 async function mesgServer(message) {
   if (await webSocket.readyState === webSocket.OPEN ) {
     const payload = await encapsulateMesg(await getTornApiToken(), message)
@@ -113,26 +108,50 @@ async function encapsulateMesg(token, message) {
   return JSON.stringify(payload);
 }
 
+async function queryWar() {
+  console.log("queryWar")
+  const result = await (chrome.storage.local.get('tornApiKey'));
+  fetch("https://api.torn.com/v2/faction/48040/wars?key="+result.tornApiKey)
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      return response.json();
+    })
+    .then(data => {
+        if (data.wars.ranked !== null && (data.wars.ranked.end === null ||  data.wars.ranked.end > (Date.now()/1000) ) ) {
+          data.wars.ranked.factions.forEach((faction) => {
+            if (faction.id !== 48040) {
+              queryEnemyFaction(faction.id);
+            }
+          });
+        } else {
+          targetList = {};
+        }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+    });
+    setTimeout(queryWar, await getOffset());
+}
 
+async function queryEnemyFaction(factionid) {
+  const result = await (chrome.storage.local.get('tornApiKey'));
+  fetch("https://api.torn.com/v2/faction/"+factionid+"/members?key="+result.tornApiKey+"&striptags=true")
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      return response.json();
+    })
+    .then(data => {
+      processFaction(data.members, true);
+    })
+    .catch(error => {
+      console.error('Error:', error);
+    });
+}
 
-// async function queryWar() {
-
-//   fetch("https://api.torn.com/v2/faction/wars?key="+(await chrome.storage.local.get('tornApiKey'))["tornApiKey"])
-//     .then(response => {
-//       if (!response.ok) {
-//         throw new Error('Network response was not ok');
-//       }
-//       return response.json();
-//     })
-//     .then(data => {
-//       // console.log(data);
-//     })
-//     .catch(error => {
-//       console.error('Error:', error);
-//     });
-
-
-// }
 
 async function queryFaction() {
   const result = await (chrome.storage.local.get('tornApiKey'));
@@ -144,7 +163,7 @@ async function queryFaction() {
       return response.json();
     })
     .then(data => {
-      processFaction(data.members);
+      processFaction(data.members, false);
     })
     .catch(error => {
       console.error('Error:', error);
@@ -152,31 +171,33 @@ async function queryFaction() {
     setTimeout(queryFaction, await getOffset());
 }
 
-async function processFaction(data) {
-  console.time("processFaction")
+async function processFaction(data, isTarget = false) {
+  console.time(`processFaction, isTarget: ${isTarget}`)
   let newList = [];
   let updateList = [];
   for (let i=0; i< data.length; i++) {
+    data[i].is_target = isTarget;
     let memberId = data[i].id;
     newList.push(memberId);
-    if (!(await compareMember( memberId ,data[i] ) ))
+    if (!(await compareMember( memberId, data[i] ) ))
     {
       await updateMember(data[i]);
       updateList.push(data[i]);
     }
- 
   };
-  checkForPurge(newList);
+  checkForPurge(newList, isTarget);
   mesgServer(updateList);
-  console.timeEnd("processFaction")
+  console.timeEnd(`processFaction, isTarget: ${isTarget}`)
 }
 
-
-
 async function compareMember(memberId, member) {
-
-  const memberObj = memberList[memberId]
-
+  let memberObj;
+  if (member.is_target) {
+    memberObj = targetList[memberId];
+  } else {
+    memberObj = memberList[memberId];
+  }
+  
   if (memberObj === undefined) {
     return false;
   }
@@ -189,7 +210,8 @@ async function compareMember(memberId, member) {
     "state": member["status"]["state"],
     "until": member["status"]["until"],
     "lastAction": member["last_action"]["relative"],
-    "lastStatus": member["last_action"]["status"]
+    "lastStatus": member["last_action"]["status"],
+    "isTarget": member["is_target"]
   };
 
   if (Object.keys(memberObj).length !== Object.keys(newMemberObj).length) {
@@ -205,7 +227,6 @@ async function compareMember(memberId, member) {
 }
 
 async function processUpdate(updateData) {
-  // console.time("processUpdate");
 
   for (let i=0; i< updateData.length; i++) {
     if (!(await compareMember( updateData[i].id, updateData[i] ))) {
@@ -224,20 +245,33 @@ async function updateMember(member) {
     "state": member["status"]["state"],
     "until": member["status"]["until"],
     "lastAction": member["last_action"]["relative"],
-    "lastStatus": member["last_action"]["status"]
+    "lastStatus": member["last_action"]["status"],
+    "isTarget": member["is_target"]
   };
   const myId = member.id.toString();
   
-  memberList[myId] = memberObj;
+  if (member.is_target) {
+    targetList[myId] = memberObj;
+  } else {
+    memberList[myId] = memberObj;
+  }
 
 }
 
-async function checkForPurge(newList) {
-  Object.keys(memberList).forEach(id => {
-    if (!newList.includes(Number(id))) {
-      delete memberList[id];
-    }
-  });  
+async function checkForPurge(newList, isTarget) {
+  if (isTarget) {
+    Object.keys(targetList).forEach(id => {
+      if (!newList.includes(Number(id))) {
+        delete targetList[id];
+      }
+    }); 
+  } else {
+    Object.keys(memberList).forEach(id => {
+      if (!newList.includes(Number(id))) {
+        delete memberList[id];
+      }
+    }); 
+  }
 }
 
 function getOffset() {

@@ -17,6 +17,7 @@ type FactionMemberUpdate struct {
 	Life          FactionMemberLife   `json:"life"`
 	ReviveSetting string              `json:"revive_setting"`
 	IsRevivable   bool                `json:"is_revivable"`
+	IsTarget      bool                `json:"is_target"`
 }
 type FactionMemberLastAction struct {
 	Status    string `json:"status"`
