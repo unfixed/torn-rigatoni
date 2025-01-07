@@ -1,46 +1,41 @@
-// var x = setInterval(getOffset,1000)
+var countdowns = [];
+var memberRoster = {};
+checkEnabled()
 
-const enabled = (await chrome.storage.local.get("Enabled"))["Enabled"];
-if (enabled != true) { 
-    console.log("not enabled");
-} else {
-    var countdowns = [];
-    var memberRoster = {};
-    getUpdates();
-    var updateMemberListUi =  setInterval(getUpdates, 500);
-    var updateCountDowns = setInterval(evalCountDowns, 1000);
+async function checkEnabled(){
+    const enabled = (await chrome.storage.local.get("Enabled"))["Enabled"];
+    if (enabled != true) { 
+        console.log("not enabled");
+        setTimeout(checkEnabled,5000)
+    } else {
+        getUpdates();
+        var updateMemberListUi =  setInterval(getUpdates, 500);
+        var updateCountDowns = setInterval(evalCountDowns, 1000);
+    }
 }
 
-
 async function getUpdates() {
-    // console.time("getUpdates");
-
     const enabled = (await chrome.storage.local.get("Enabled"))["Enabled"];
     if (enabled != true) { console.log("not enabled"); return }
     
     chrome.runtime.sendMessage('get-targets', (targets) => {
-        // console.log (targets)
         var allKeys = Object.keys(targets);
         allKeys.forEach((index) => {
             
             if (!(Object.keys(memberRoster).includes(index))) {
-                // console.log("member not in roster")
                 memberRoster[index] = targets[index];
                 createMemberUiObject(index, targets[index]);
             } else {
                 if (targets[index].lastStatus !== memberRoster[index].lastStatus || targets[index].lastAction !== memberRoster[index].lastAction) {
-                    // console.log(`updating last for ${targets[index].name}`)
                     memberRoster[index].lastStatus = targets[index].lastStatus;
                     memberRoster[index].lastAction = targets[index].lastAction;
                     updateLastActionUiElement(index,targets[index].lastAction,targets[index].lastStatus);
                 }
                 if (targets[index].state !== memberRoster[index].state) {
-                    // console.log(`updating state for ${targets[index].name}`)
                     memberRoster[index].state = targets[index].state;
                     updateStateUiElement(index,targets[index].lastAction,targets[index].lastStatus);
                 }
                 if (targets[index].until !== memberRoster[index].until) {
-                    // console.log(`updating until for ${targets[index].name}`)
                     memberRoster[index].until = targets[index].until;
                     updateUntilUiElement(index,targets[index].lastAction,targets[index].lastStatus);
                 }
@@ -52,15 +47,9 @@ async function getUpdates() {
     });
     
     chrome.runtime.sendMessage('get-clients', (clients) => {
-        // console.log (targets)
-
         const element = document.getElementById(`clients-connected`);
         element.textContent = `${clients} Clients Connected to Relay (~${32/clients}s update interval)`;
-        
     });
-
-
-    // console.timeEnd("getUpdates");
 }
 
 
@@ -120,7 +109,6 @@ async function createMemberUiObject(memberid,data) {
         newTargetUntilElement.classList.add("inline-flex", "pl-1");
         newTargetUntilElement.textContent = await timeLeft(data["until"]);
         if (data["until"] > 0) {
-            // console.log(`added countdown for ${memberid}`)
             countdowns.push([memberid, data["until"]])
         }   
 
