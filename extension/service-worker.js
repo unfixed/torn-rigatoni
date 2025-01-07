@@ -61,8 +61,10 @@ async function connect() {
 
   webSocket.onclose = (event) => {
     console.log('websocket connection closed');
-    if (backoff < 32000) {
+    if (backoff < 1000) {
       backoff = backoff*2;
+    } else if (backoff < 10000) {
+      backoff = backoff*1.1;
     };
     setTimeout(function() {
       connect();
