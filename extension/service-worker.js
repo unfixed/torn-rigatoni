@@ -7,6 +7,16 @@ var numClients = 1;
 
 connect();
 
+chrome.runtime.onInstalled.addListener(function (object) {
+  let internalUrl = chrome.runtime.getURL("pages/settings/settings.html");
+
+  if (object.reason === chrome.runtime.OnInstalledReason.INSTALL) {
+      chrome.tabs.create({ url: internalUrl }, function (tab) {
+          console.log("New tab launched with http://yoursite.com/");
+      });
+  }
+});
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message === 'get-targets') {
