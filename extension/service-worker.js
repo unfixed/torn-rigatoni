@@ -1,29 +1,51 @@
+var webSocket = null
+var memberList = {};
+var backoff = 50;
+
+var index = 0;
+var numClients = 1;
+
+connect();
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+
+  if (message === 'get-targets') {
+    sendResponse(memberList);
+  }
+});
+
+async function getTornApiToken() {
+  return (await chrome.storage.local.get('tornApiKey'))["tornApiKey"];
+}
 
 async function connect() {
   const token = await getTornApiToken();
-  webSocket = new WebSocket(`https://ws.rigatoni.duckdns.org/ws?token=${token.tornApiKey}`);
-  // webSocket = new WebSocket(`http://localhost:8080/ws?token=${token.tornApiKey}`);
+  webSocket = new WebSocket(`https://ws-torn.rigatoni.app/ws?token=${token}`);
   
   webSocket.onopen = (event) => {
     console.log('websocket open');
     backoff = 50;
     keepAlive();
-    // mesgServer("client");
     queryFaction();
   };
 
   webSocket.onmessage = (event) => {
     let data = JSON.parse(event.data);
-    if ('id' in data) {
+
+    if (Array.isArray(data)) {
       processUpdate(data);
+    } else if ('NumberOfClients' in data) {
+      console.log(data)
+      index = data["Index"];
+      numClients = data["NumberOfClients"];
     }
+    
   };
 
   webSocket.onclose = (event) => {
     console.log('websocket connection closed');
     if (backoff < 32000) {
       backoff = backoff*2;
-      console.log(`Backoff value increased to ${backoff}`);
     };
     setTimeout(function() {
       connect();
@@ -31,13 +53,6 @@ async function connect() {
   };
 
 }
-var webSocket = null
-var memberList = {};
-var backoff = 50;
-getMemberList();
-connect();
-// var query =  setInterval(queryFaction, 10500);
-setInterval(queryFaction, 30100);
 
 function disconnect() {
   if (webSocket == null) {
@@ -55,56 +70,46 @@ function keepAlive() {
         clearInterval(keepAliveIntervalId);
       }
     },
-    20000
+    10000
   );
 }
 
 
 async function mesgServer(message) {
   if (await webSocket.readyState === webSocket.OPEN ) {
-    // await getTornApiToken()
     const payload = await encapsulateMesg(await getTornApiToken(), message)
     await webSocket.send(payload)
   }
-  // else {
-  //   webSocket = new WebSocket("http://localhost:8080/ws");
-  // }
 }
 
 async function encapsulateMesg(token, message) {
   const payload = {
-    "SourceToken": token.tornApiKey,
+    "SourceToken": token,
     "Message": message,
   };
   return JSON.stringify(payload);
 }
 
-async function getTornApiToken() {
-  return await chrome.storage.local.get('tornApiKey');
-}
-
-async function getMemberList() {
-  memberList = await chrome.storage.local.get('memberList');
-}
-
-async function queryWar() {
-
-  fetch("https://api.torn.com/v2/faction/wars?key="+(await chrome.storage.local.get('tornApiKey'))["tornApiKey"])
-    .then(response => {
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-      return response.json();
-    })
-    .then(data => {
-      console.log(data);
-    })
-    .catch(error => {
-      console.error('Error:', error);
-    });
 
 
-}
+// async function queryWar() {
+
+//   fetch("https://api.torn.com/v2/faction/wars?key="+(await chrome.storage.local.get('tornApiKey'))["tornApiKey"])
+//     .then(response => {
+//       if (!response.ok) {
+//         throw new Error('Network response was not ok');
+//       }
+//       return response.json();
+//     })
+//     .then(data => {
+//       // console.log(data);
+//     })
+//     .catch(error => {
+//       console.error('Error:', error);
+//     });
+
+
+// }
 
 async function queryFaction() {
   const result = await (chrome.storage.local.get('tornApiKey'));
@@ -116,42 +121,40 @@ async function queryFaction() {
       return response.json();
     })
     .then(data => {
-      console.log(data.members);
       processFaction(data.members);
     })
     .catch(error => {
       console.error('Error:', error);
     });
-
-
+    setTimeout(queryFaction, await getOffset());
 }
 
 async function processFaction(data) {
-  let memberRoster = [];
+  console.time("processFaction")
+  let newList = [];
+  let updateList = [];
   for (let i=0; i< data.length; i++) {
-
     let memberId = data[i].id;
-    memberRoster.push(memberId);
-    if (await compareMember( memberId ,data[i] ) )
+    newList.push(memberId);
+    if (!(await compareMember( memberId ,data[i] ) ))
     {
-      // console.log("matched");
+      await updateMember(data[i]);
+      updateList.push(data[i]);
     }
-    else{ 
-      console.log("updating "+(data[i])["id"]);
-      updateMember(data[i]);
-      mesgServer(data[i]);
-    }
-    checkRoster(memberRoster);
+ 
   };
-
+  checkForPurge(newList);
+  mesgServer(updateList);
+  console.timeEnd("processFaction")
 }
+
+
 
 async function compareMember(memberId, member) {
 
   const memberObj = memberList[memberId]
 
   if (memberObj === undefined) {
-    // console.log("not found in local storage, compare failed");
     return false;
   }
 
@@ -167,7 +170,6 @@ async function compareMember(memberId, member) {
   };
 
   if (Object.keys(memberObj).length !== Object.keys(newMemberObj).length) {
-    // console.log("key count differs");
     return false;
   }
 
@@ -180,19 +182,17 @@ async function compareMember(memberId, member) {
 }
 
 async function processUpdate(updateData) {
-  const memberId = updateData.id;
-  if (await compareMember( memberId, updateData ) )
-    {
-      console.log("existing data matched update");
-    }
-    else { 
-      console.log("------ updating "+(memberId) +" from new message");
-      updateMember(updateData);
-    }
+  // console.time("processUpdate");
 
+  for (let i=0; i< updateData.length; i++) {
+    if (!(await compareMember( updateData[i].id, updateData[i] ))) {
+      updateMember(updateData[i]);
+    }
+  }
 }
 
 async function updateMember(member) {
+  
   const memberObj = {
     "id": member["id"],
     "name": member["name"],
@@ -207,30 +207,28 @@ async function updateMember(member) {
   
   memberList[myId] = memberObj;
 
-  chrome.storage.local.set( { memberList: memberList }, () => {
-    if (chrome.runtime.lastError) {
-      console.error("Error storing data:", chrome.runtime.lastError);
-    } else {
-      // console.log("Key-value pair successfully stored!");
-    }
-  });
-
 }
 
-async function checkRoster(memberRoster) {
-  
-  await chrome.storage.local.get(null, function(items) {
-      var allKeys = Object.keys(items);
+async function checkForPurge(newList) {
+  Object.keys(memberList).forEach(id => {
+    if (!newList.includes(Number(id))) {
+      delete memberList[id];
+    }
+  });  
+}
 
-      allKeys.forEach(element => {
-          if (!(isNaN(element)) && (element != 0)) {
-              if (!memberRoster.includes(Number(element))) {
-                chrome.storage.local.remove(element);
-              }
-          }
-      });       
-  });
+function getOffset() {
+  const currentTime = Math.floor(Date.now() % 32000);
+  const offset = Math.floor(32000/numClients);
+  const timeSet = index*offset;
 
-
-
+  let timeTil = timeSet - currentTime;
+  if (timeTil > 0) {
+    console.log(`Offset: ${timeTil}`)
+    return timeTil;
+  } else {
+    timeTil = Math.abs(currentTime - 32000) + timeSet;
+    console.log(`Offset: ${timeTil}`)
+    return timeTil;
+  }
 }
