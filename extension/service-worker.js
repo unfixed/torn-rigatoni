@@ -206,7 +206,7 @@ async function compareMember(memberId, member) {
     "details": member["status"]["details"],
     "state": member["status"]["state"],
     "until": member["status"]["until"],
-    "lastAction": member["last_action"]["relative"],
+    "lastAction": member["last_action"]["timestamp"],
     "lastStatus": member["last_action"]["status"],
     "isTarget": member["is_target"]
   };
@@ -241,7 +241,7 @@ async function updateMember(member) {
     "details": member["status"]["details"],
     "state": member["status"]["state"],
     "until": member["status"]["until"],
-    "lastAction": member["last_action"]["relative"],
+    "lastAction": member["last_action"]["timestamp"],
     "lastStatus": member["last_action"]["status"],
     "isTarget": member["is_target"]
   };

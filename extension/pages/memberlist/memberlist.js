@@ -1,5 +1,8 @@
 var countdowns = [];
+var timeEvals = {};
 var memberRoster = {};
+var untilMutex = {};
+
 checkEnabled()
 
 async function checkEnabled(){
@@ -10,7 +13,8 @@ async function checkEnabled(){
     } else {
         getUpdates();
         var updateMemberListUi =  setInterval(getUpdates, 500);
-        var updateCountDowns = setInterval(evalCountDowns, 1000);
+        var evalCountDownsUi = setInterval(evalCountDowns, 1000);
+        var evalTimeSinceUi = setInterval(evalTimeSince, 5000);
     }
 }
 
@@ -19,8 +23,7 @@ async function getUpdates() {
     if (enabled != true) { console.log("not enabled"); return }
     
     chrome.runtime.sendMessage('get-members', (targets) => {
-        var allKeys = Object.keys(targets);
-        allKeys.forEach((index) => {
+        for (const index in targets) {
             
             if (!(Object.keys(memberRoster).includes(index))) {
                 memberRoster[index] = targets[index];
@@ -33,15 +36,15 @@ async function getUpdates() {
                 }
                 if (targets[index].state !== memberRoster[index].state) {
                     memberRoster[index].state = targets[index].state;
-                    updateStateUiElement(index,targets[index].lastAction,targets[index].lastStatus);
+                    updateStateUiElement(index,targets[index].state);
                 }
                 if (targets[index].until !== memberRoster[index].until) {
                     memberRoster[index].until = targets[index].until;
-                    updateUntilUiElement(index,targets[index].lastAction,targets[index].lastStatus);
+                    updateUntilUiElement(index,targets[index].until);
                 }
             }
 
-        });
+        }
 
         
     });
@@ -63,7 +66,10 @@ async function createMemberUiObject(memberid,data) {
         
         const newTargetLastElement = document.createElement("div");
         newTargetLastElement.id = `id-${memberid}-last`;
-        newTargetLastElement.title = data["lastAction"];
+        newTargetLastElement.title = timeSince(data["lastAction"]);
+        if (data["lastAction"] > 0) {
+            timeEvals[memberid] = data["lastAction"];
+        }
         switch (data["lastStatus"]) {
             case "Online":
                 newTargetLastElement.classList.add("inline-flex", "h-4", "w-4", "rounded-full", "bg-green-500");
@@ -108,7 +114,7 @@ async function createMemberUiObject(memberid,data) {
         const newTargetUntilElement = document.createElement("div");
         newTargetUntilElement.id = `id-${memberid}-until`;
         newTargetUntilElement.classList.add("inline-flex", "pl-1");
-        newTargetUntilElement.textContent = await timeLeft(data["until"]);
+        newTargetUntilElement.textContent = timeLeft(data["until"],memberid);
         if (data["until"] > 0) {
             countdowns.push([memberid, data["until"]])
         }   
@@ -122,11 +128,125 @@ async function createMemberUiObject(memberid,data) {
     } 
 }
 
-async function timeLeft(timeStamp) {
+function timeLeft(timeStamp,memberid) {
     const now = Math.floor(Date.now() / 1000);
     const timeDiff = timeStamp - now;
 
-    if (timeLeft <= 0) {
+    if (timeDiff < 0 && memberRoster[memberid].state === "Hospital") {
+        return "Might be out of Hospital!";
+    }
+
+    const days = Math.floor(timeDiff / 86400);
+    const hours = Math.floor((timeDiff % 86400) / 3600);
+    const minutes = Math.floor((timeDiff % 3600) / 60);
+    const seconds = Math.floor(timeDiff % 60);
+
+    let result = "";
+    if (days > 0) {
+    result += `${days} days `;
+    }
+    if (hours > 0) {
+    result += `${hours} hours `;
+    }
+    if (minutes > 0) {
+    result += `${minutes} minutes `;
+    }
+    if (seconds >= 0 && result !== "") {
+        result += `${seconds} seconds `;
+    } else if (seconds > 0 ) {
+        result += `${seconds} seconds `;
+    }
+
+    return result.trim();
+}
+
+async function evalCountDowns() {
+    if (countdowns.length <= 0) {
+        return
+    }
+    
+    await countdowns.map(async (item, index) => {
+        const Output = timeLeft(item[1],item[0]);
+        let element = document.getElementById(`id-${item[0]}-until`);
+        if (untilMutex[item[0]] === true)
+            return
+        element.textContent = Output;
+
+        if (Output === "") {
+            countdowns.pop(index);
+        }
+      });
+
+}
+
+async function evalTimeSince() {
+    if (timeEvals.length <= 0) {
+        return
+    }
+ 
+    const allkeys = Object.keys(timeEvals);
+    allkeys.forEach((index) => {
+        const Output = timeSince(timeEvals[index]);
+        let element = document.getElementById(`id-${index}-last`);
+        element.title = Output;
+      });
+
+}
+
+function updateStateUiElement(memberid,state) {
+    const element = document.getElementById(`id-${memberid}-state`);
+    element.textContent = state;
+    switch (state) {
+        case "Okay":
+            element.className = "inline-flex pl-1 text-green-500";
+            break;
+        case "Abroad":
+            element.className = "inline-flex pl-1 text-blue-500";
+            break;
+        case "Traveling":
+            element.className = "inline-flex pl-1 text-yellow-500";
+            break;
+        case "Hospital":
+            element.className = "inline-flex pl-1 text-red-500";
+            break;
+        case "Jail":
+            element.className = "inline-flex pl-1 text-orange-500";
+            break;
+    }
+}
+function updateUntilUiElement(memberid,until) {
+    const element = document.getElementById(`id-${memberid}-until`);
+    while (untilMutex[memberid] === true) {
+        
+    }
+    untilMutex[memberid] = true;
+    element.textContent = timeLeft(until,memberid);
+    untilMutex[memberid] = false;
+}
+function updateLastActionUiElement(memberid,lastAction,lastStatus) {
+    const element = document.getElementById(`id-${memberid}-last`);
+    element.title = timeSince(lastAction);
+    if (lastAction > 0) {
+        timeEvals[memberid] = lastAction;
+    }   
+    switch (lastStatus) {
+        case "Online":
+            element.className = "inline-flex h-4 w-4 rounded-full bg-green-500";
+            break;
+        case "Idle":
+            element.className = "inline-flex h-4 w-4 rounded-full bg-yellow-500";
+            break;
+        case "Offline":
+            element.className = "inline-flex h-4 w-4 rounded-full bg-red-500";
+            break;
+    }
+}
+
+function timeSince(timeStamp) {
+    const now = Math.floor(Date.now() / 1000);
+    const timeDiff = now - timeStamp;
+
+    if (timeDiff <= 0) {
         return "";
     }
 
@@ -151,44 +271,3 @@ async function timeLeft(timeStamp) {
 
     return result.trim();
 }
-
-async function evalCountDowns() {
-    if (countdowns.length <= 0) {
-        return
-    }
-    
-    await countdowns.map(async (item, index) => {
-        const Output = await timeLeft(item[1]);
-        let element = document.getElementById(`id-${item[0]}-until`);
-        element.textContent = Output;
-        if (Output === "") {
-            countdowns.pop(index);
-        }
-      });
-
-}
-
-async function updateStateUiElement(memberid,state) {
-    const element = document.getElementById(`id-${memberid}-state`);
-    element.textContent = state;
-}
-async function updateUntilUiElement(memberid,until) {
-    const element = document.getElementById(`id-${memberid}-until`);
-    element.textContent = await timeLeft(until);
-}
-async function updateLastActionUiElement(memberid,lastAction,lastStatus) {
-    const element = document.getElementById(`id-${memberid}-last`);
-    element.title = lastAction;
-    switch (lastStatus) {
-        case "Online":
-            element.className = "inline-flex h-4 w-4 rounded-full bg-green-500";
-            break;
-        case "Idle":
-            element.className = "inline-flex h-4 w-4 rounded-full bg-yellow-500";
-            break;
-        case "Offline":
-            element.className = "inline-flex h-4 w-4 rounded-full bg-red-500";
-            break;
-    }
-}
-
