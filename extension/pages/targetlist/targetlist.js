@@ -180,17 +180,14 @@ async function evalCountDowns() {
 }
 
 async function evalTimeSince() {
-    if (timeEvals.length <= 0) {
-        return
+    if (timeEvals.length > 0) {
+        const allkeys = Object.keys(timeEvals);
+        allkeys.forEach((index) => {
+            const Output = timeSince(timeEvals[index]);
+            let element = document.getElementById(`id-${index}-last`);
+            element.title = Output;
+        });
     }
- 
-    const allkeys = Object.keys(timeEvals);
-    allkeys.forEach((index) => {
-        const Output = timeSince(timeEvals[index]);
-        let element = document.getElementById(`id-${index}-last`);
-        element.title = Output;
-      });
-
 }
 
 function updateStateUiElement(memberid,state) {
