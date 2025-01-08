@@ -8,6 +8,7 @@ type MessageUpdate struct {
 type FactionMemberUpdate struct {
 	Id            int                     `json:"id"`
 	Name          string                  `json:"name"`
+	Timestamp     int64                   `json:"timestamp"`
 	Position      string                  `json:"position"`
 	Level         int                     `json:"level"`
 	DaysInFaction int                     `json:"days_in_faction"`

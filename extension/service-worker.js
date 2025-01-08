@@ -83,6 +83,7 @@ function keepAlive() {
     () => {
       if (webSocket) {
         webSocket.send('keepalive');
+        console.log(targetList);
       } else {
         clearInterval(keepAliveIntervalId);
       }
@@ -132,6 +133,26 @@ async function queryWar() {
     setTimeout(queryWar, await getOffset());
 }
 
+async function querySpyReport(memberid) {
+  const token = await getTornApiToken();
+  fetch("https://www.tornstats.com/api/v2/"+token+"/spy/user/"+memberid)
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (data.status ==! true || data.spy.status ==! true) {
+        return;
+      }
+      return [data["spy"]["status"]["total"], data["spy"]["status"]["total_timestamp"]];
+    })
+    .catch(error => {
+      console.error('Error:', error);
+    });
+}
+
 async function queryEnemyFaction(factionid) {
   const result = await (chrome.storage.local.get('tornApiKey'));
   fetch("https://api.torn.com/v2/faction/"+factionid+"/members?key="+result.tornApiKey+"&striptags=true")
@@ -170,14 +191,20 @@ async function queryFaction() {
 
 async function processFaction(data, isTarget = false) {
   console.time(`processFaction, isTarget: ${isTarget}`)
+  let timestamp = Date.now()
   let newList = [];
   let updateList = [];
   for (let i=0; i< data.length; i++) {
+    data[i].timestamp = timestamp;
     data[i].is_target = isTarget;
     let memberId = data[i].id;
+    // let report = await querySpyReport(memberId);
+    // member["spy"]["bs_total"] = 
+    // member["spy"]["bs_total"] = 
     newList.push(memberId);
     if (!(await compareMember( memberId, data[i] ) ))
     {
+      // console.log(data[i]);
       await updateMember(data[i]);
       updateList.push(data[i]);
     }
@@ -189,6 +216,7 @@ async function processFaction(data, isTarget = false) {
 
 async function compareMember(memberId, member) {
   let memberObj;
+
   if (member.is_target) {
     memberObj = targetList[memberId];
   } else {
@@ -199,16 +227,21 @@ async function compareMember(memberId, member) {
     return false;
   }
 
+  if (member.timestamp <= memberObj.timestamp) {
+    return false;
+  }
+
   const newMemberObj = {
     "id": member["id"],
     "name": member["name"],
+    "timestamp": member["timestamp"],
     "description": member["status"]["description"],
     "details": member["status"]["details"],
     "state": member["status"]["state"],
     "until": member["status"]["until"],
     "lastAction": member["last_action"]["timestamp"],
     "lastStatus": member["last_action"]["status"],
-    "isTarget": member["is_target"]
+    "isTarget": member["is_target"],
   };
 
   if (Object.keys(memberObj).length !== Object.keys(newMemberObj).length) {
@@ -233,24 +266,44 @@ async function processUpdate(updateData) {
 }
 
 async function updateMember(member) {
-  
-  const memberObj = {
-    "id": member["id"],
-    "name": member["name"],
-    "description": member["status"]["description"],
-    "details": member["status"]["details"],
-    "state": member["status"]["state"],
-    "until": member["status"]["until"],
-    "lastAction": member["last_action"]["timestamp"],
-    "lastStatus": member["last_action"]["status"],
-    "isTarget": member["is_target"]
-  };
-  const myId = member.id.toString();
+
+  let memberObj = null;
+  if (member.is_target) {
+    memberObj = targetList[member.id.toString()];
+  } else {
+    memberObj = memberList[member.id.toString()];
+  }
+
+  if (memberObj === undefined) {
+    memberObj = {
+      "id": member["id"],
+      "name": member["name"],
+      "timestamp": member["timestamp"],
+      "description": member["status"]["description"],
+      "details": member["status"]["details"],
+      "state": member["status"]["state"],
+      "until": member["status"]["until"],
+      "lastAction": member["last_action"]["timestamp"],
+      "lastStatus": member["last_action"]["status"],
+      "isTarget": member["is_target"]
+    };
+  } else {
+    memberObj["id"] = member["id"];
+    memberObj["name"] = member["name"];
+    memberObj["timestamp"] = member["timestamp"];
+    memberObj["description"] = member["status"]["description"];
+    memberObj["details"] = member["status"]["details"];
+    memberObj["state"] = member["status"]["state"];
+    memberObj["until"] = member["status"]["until"];
+    memberObj["lastAction"] = member["last_action"]["timestamp"];
+    memberObj["lastStatus"] = member["last_action"]["status"];
+    memberObj["isTarget"] = member["is_target"];
+  }
   
   if (member.is_target) {
-    targetList[myId] = memberObj;
+    targetList[member.id.toString()] = memberObj;
   } else {
-    memberList[myId] = memberObj;
+    memberList[member.id.toString()] = memberObj;
   }
 
 }
