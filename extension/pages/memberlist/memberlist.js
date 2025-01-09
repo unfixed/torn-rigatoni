@@ -11,11 +11,40 @@ async function checkEnabled(){
         console.log("not enabled");
         setTimeout(checkEnabled,5000)
     } else {
-        getUpdates();
+        await getUpdates();
         var updateMemberListUi =  setInterval(getUpdates, 500);
         var evalCountDownsUi = setInterval(evalCountDowns, 1000);
         var evalTimeSinceUi = setInterval(evalTimeSince, 5000);
+        var updateBattleStatsUi = setInterval(updateBattleStats, 60000);
+        updateBattleStats();
     }
+}
+
+async function updateBattleStats() {
+    const enabled = (await chrome.storage.local.get("Enabled"))["Enabled"];
+    if (enabled != true) { console.log("not enabled"); return }
+
+    console.log("updateBattleStats")
+
+    chrome.runtime.sendMessage('get-spies', (spies) => {
+        for (const index in spies) {
+            if ((Object.keys(memberRoster).includes(index)) && spies[index].spyTimestamp > (Math.floor(Date.now() / 1000)  - 2592000)) {
+                
+                const element = document.getElementById(`id-${index}-battlestats`);
+                if (element == null ) {
+                    const newTargetElement = document.createElement("div");
+                    newTargetElement.id = `id-${index}-battlestats`;
+                    newTargetElement.classList.add("flex");
+                    newTargetElement.textContent = evalBattleStats(spies[index].spyTotal);
+                    newTargetElement.className = evalBattleStatsColor(spies[index].spyTotal);
+
+                    document.getElementById(`id-${index}`).insertBefore(newTargetElement, document.getElementById(`id-${index}-state`));
+                }
+            } else {
+                // console.log("")
+            }
+        }
+    });
 }
 
 async function getUpdates() {
@@ -62,7 +91,7 @@ async function createMemberUiObject(memberid,data) {
     if (element == null ) {
         const newTargetElement = document.createElement("div");
         newTargetElement.id = `id-${memberid}`;
-        newTargetElement.classList.add("flex");
+        newTargetElement.classList.add("flex", "py-1");
         
         const newTargetLastElement = document.createElement("div");
         newTargetLastElement.id = `id-${memberid}-last`;
@@ -81,14 +110,22 @@ async function createMemberUiObject(memberid,data) {
                 newTargetLastElement.classList.add("inline-flex", "h-4", "w-4", "rounded-full", "bg-red-500");
                 break;
         }
+        const newTargetNameContainerElement = document.createElement("div");
+        newTargetNameContainerElement.classList.add("inline-flex", "px-1");
+
         const newTargetNameElement = document.createElement("div");
         newTargetNameElement.id = `id-${memberid}-name`;
-        newTargetNameElement.classList.add("inline-flex", "pl-1");
+        newTargetNameElement.classList.add("inline-flex", "px-2", "bg-gray-600", "rounded-md");
         newTargetNameElement.textContent = data["name"];
 
         const newTargetLinkElement = document.createElement("a");
         newTargetLinkElement.href = `https://www.torn.com/profiles.php?XID=${memberid}`;
         newTargetLinkElement.target = "_blank";
+
+        const newTargetLevelElement = document.createElement("div");
+        newTargetLevelElement.id = `id-${memberid}-level`;
+        newTargetLevelElement.classList.add("inline-flex", "px-2");
+        newTargetLevelElement.textContent = "Level: "+data["level"];
 
         const newTargetStateElement = document.createElement("div");
         newTargetStateElement.id = `id-${memberid}-state`;
@@ -121,7 +158,9 @@ async function createMemberUiObject(memberid,data) {
 
         newTargetElement.appendChild(newTargetLastElement);
         newTargetElement.appendChild(newTargetLinkElement);
-        newTargetLinkElement.appendChild(newTargetNameElement);
+        newTargetLinkElement.appendChild(newTargetNameContainerElement);
+        newTargetNameContainerElement.appendChild(newTargetNameElement);
+        newTargetElement.appendChild(newTargetLevelElement);
         newTargetElement.appendChild(newTargetStateElement);
         newTargetElement.appendChild(newTargetUntilElement);
         document.body.appendChild(newTargetElement); 
@@ -270,4 +309,51 @@ function timeSince(timeStamp) {
     }
 
     return result.trim();
+}
+
+
+
+function evalBattleStats(battlestats) {
+
+    const billions = Math.floor(battlestats / 1000000000);
+    const millions = Math.floor(battlestats / 1000000);
+    const thousands = Math.floor(battlestats / 1000);
+
+    let result = "";
+    if (billions > 0) {
+        result += `${billions}.${Math.floor(battlestats % 1000000000).toString().substring(0,2)}B`;
+        return result.trim();
+    }
+    if (millions > 0) {
+        result += `${millions}.${Math.floor(battlestats % 1000000).toString().substring(0,2)}M`;
+        return result.trim();
+    }
+    if (thousands > 0) {
+        result += `${thousands},${Math.floor(battlestats % 1000)}`;
+        return result.trim();
+    }
+    if (battlestats > 0) {
+        result += `${battlestats}`;
+        return result.trim();
+    }
+
+    return result.trim();
+}
+
+function evalBattleStatsColor(battlestats) {
+
+    if (battlestats > 1000000000) {
+        return "rounded-md px-2 bg-red-100 text-red-800";
+    }
+    if (battlestats < 1000000000 && battlestats > 200000000) {
+        return "rounded-md px-2 bg-orange-100 text-orange-600";
+    }
+    if (battlestats < 200000000 && battlestats > 25000000) {
+        return "rounded-md px-2 bg-blue-100 text-blue-600";
+    }
+    if (battlestats < 25000000 && battlestats > 1000000) {
+        return "rounded-md px-2 bg-purple-100 text-purple-600";
+    }
+
+    return "rounded-md px-2 bg-green-100 text-green-600";
 }

@@ -1,7 +1,12 @@
 var webSocket = null
 var memberList = {};
 var targetList = {};
+var spyReports = {};
+var spyTimeouts = {};
+
 var backoff = 50;
+var spyReportTimeout = 0;
+var reportCount = 0;
 
 var index = 0;
 var numClients = 1;
@@ -26,8 +31,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse(memberList);
   } else if (message === 'get-clients') {
     sendResponse(numClients);
+  } else if (message === 'get-spies') {
+    sendResponse(spyReports);
   }
 });
+
+async function getTornStatsApiToken() {
+  return (await chrome.storage.local.get('tornStatsApiKey'))["tornStatsApiKey"];
+}
 
 async function getTornApiToken() {
   return (await chrome.storage.local.get('tornApiKey'))["tornApiKey"];
@@ -81,9 +92,8 @@ function disconnect() {
 function keepAlive() {
   const keepAliveIntervalId = setInterval(
     () => {
-      if (webSocket) {
+      if (await webSocket.readyState === webSocket.OPEN ) {
         webSocket.send('keepalive');
-        console.log(targetList);
       } else {
         clearInterval(keepAliveIntervalId);
       }
@@ -108,8 +118,8 @@ async function encapsulateMesg(token, message) {
 }
 
 async function queryWar() {
-  const result = await (chrome.storage.local.get('tornApiKey'));
-  fetch("https://api.torn.com/v2/faction/48040/wars?key="+result.tornApiKey)
+  const token = await getTornApiToken();
+  fetch("https://api.torn.com/v2/faction/48040/wars?key="+token)
     .then(response => {
       if (!response.ok) {
         throw new Error('Network response was not ok');
@@ -128,14 +138,51 @@ async function queryWar() {
         }
     })
     .catch(error => {
-      console.error('Error:', error);
+      console.log('Error:', error);
     });
     setTimeout(queryWar, await getOffset());
 }
 
 async function querySpyReport(memberid) {
-  const token = await getTornApiToken();
-  fetch("https://www.tornstats.com/api/v2/"+token+"/spy/user/"+memberid)
+  token = await getTornStatsApiToken();
+
+  if (spyReportTimeout < Math.floor(Date.now() / 1000)) {
+    reportCount += 1;
+    if (reportCount > 10) {
+      spyReportTimeout = Math.floor(Date.now() / 1000) + 60;
+      reportCount = 0;
+    }
+    console.log(memberid);
+    fetch("https://www.tornstats.com/api/v2/"+token+"/spy/user/"+memberid)
+      .then(response => {
+        
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        return response.json();
+      })
+      .then(data => {        
+        
+        if (data.status === true && data.spy.status === true) {
+          spyReports[memberid] = {
+            "battleStatsTotal": data["spy"]["status"]["total"],
+            "spyReportAge": data["spy"]["status"]["total_timestamp"]
+          };
+        } else {
+          spyTimeouts[memberid] = Math.floor(Date.now() / 1000) + 3600 + (Math.floor(Math.random() * 21600))
+        }
+        
+  
+      })
+      .catch(error => {
+        console.error('Error:', error);
+      });
+  }
+}
+
+async function queryFactionReport() {
+  const token = await getTornStatsApiToken();
+  fetch("https://www.tornstats.com/api/v2/+"+token+"/spy/faction/46708")
     .then(response => {
       if (!response.ok) {
         throw new Error('Network response was not ok');
@@ -143,10 +190,18 @@ async function querySpyReport(memberid) {
       return response.json();
     })
     .then(data => {
-      if (data.status ==! true || data.spy.status ==! true) {
-        return;
+
+      if (data.status === true) {
+        for (const id in data.faction.members) {
+          if ("spy" in data.faction.members[id]) {
+            spyReports[id] = {
+              "spyTotal": data.faction.members[id].spy.total,
+              "spyTimestamp": data.faction.members[id].spy.timestamp
+            }
+          }
+        }
       }
-      return [data["spy"]["status"]["total"], data["spy"]["status"]["total_timestamp"]];
+
     })
     .catch(error => {
       console.error('Error:', error);
@@ -198,9 +253,7 @@ async function processFaction(data, isTarget = false) {
     data[i].timestamp = timestamp;
     data[i].is_target = isTarget;
     let memberId = data[i].id;
-    // let report = await querySpyReport(memberId);
-    // member["spy"]["bs_total"] = 
-    // member["spy"]["bs_total"] = 
+
     newList.push(memberId);
     if (!(await compareMember( memberId, data[i] ) ))
     {
@@ -211,6 +264,7 @@ async function processFaction(data, isTarget = false) {
   };
   checkForPurge(newList, isTarget);
   mesgServer(updateList);
+  checkForMissingSpyReport(isTarget);
   console.timeEnd(`processFaction, isTarget: ${isTarget}`)
 }
 
@@ -234,6 +288,7 @@ async function compareMember(memberId, member) {
   const newMemberObj = {
     "id": member["id"],
     "name": member["name"],
+    "level": member["level"],
     "timestamp": member["timestamp"],
     "description": member["status"]["description"],
     "details": member["status"]["details"],
@@ -242,6 +297,7 @@ async function compareMember(memberId, member) {
     "lastAction": member["last_action"]["timestamp"],
     "lastStatus": member["last_action"]["status"],
     "isTarget": member["is_target"],
+    // "":
   };
 
   if (Object.keys(memberObj).length !== Object.keys(newMemberObj).length) {
@@ -275,9 +331,11 @@ async function updateMember(member) {
   }
 
   if (memberObj === undefined) {
+
     memberObj = {
       "id": member["id"],
       "name": member["name"],
+      "level": member["level"],
       "timestamp": member["timestamp"],
       "description": member["status"]["description"],
       "details": member["status"]["details"],
@@ -290,6 +348,7 @@ async function updateMember(member) {
   } else {
     memberObj["id"] = member["id"];
     memberObj["name"] = member["name"];
+    memberObj["level"] = member["level"];
     memberObj["timestamp"] = member["timestamp"];
     memberObj["description"] = member["status"]["description"];
     memberObj["details"] = member["status"]["details"];
@@ -299,7 +358,7 @@ async function updateMember(member) {
     memberObj["lastStatus"] = member["last_action"]["status"];
     memberObj["isTarget"] = member["is_target"];
   }
-  
+
   if (member.is_target) {
     targetList[member.id.toString()] = memberObj;
   } else {
@@ -321,6 +380,27 @@ async function checkForPurge(newList, isTarget) {
         delete memberList[id];
       }
     }); 
+  }
+}
+
+async function checkForMissingSpyReport(isTarget) {
+  if (isTarget) {
+    Object.keys(targetList).forEach(id => {
+      if (!(id in spyReports)) {
+        // console.log(`missing spy report for target ${id}`)
+        if ( !(id in spyTimeouts) || Math.floor(Date.now() / 1000) > spyTimeouts[id]) {
+          querySpyReport(id);
+        }
+      }
+    }); 
+  } else {
+    for (const id in memberList) {
+      if (!(id in spyReports)) {
+        // console.log(`missing spy report for member ${id}`)
+        queryFactionReport();
+        break;
+      }
+    } 
   }
 }
 
