@@ -44,6 +44,10 @@ async function getTornApiToken() {
   return (await chrome.storage.local.get('tornApiKey'))["tornApiKey"];
 }
 
+async function getFactionId() {
+  return (await chrome.storage.local.get('FactionId'))["FactionId"];
+}
+
 async function connect() {
   const token = await getTornApiToken();
   webSocket = new WebSocket(`https://ws-torn.rigatoni.app/ws?token=${token}`);
@@ -119,7 +123,8 @@ async function encapsulateMesg(token, message) {
 
 async function queryWar() {
   const token = await getTornApiToken();
-  fetch("https://api.torn.com/v2/faction/48040/wars?key="+token)
+  const factionid = await getFactionId();
+  fetch("https://api.torn.com/v2/faction/"+factionid+"/wars?key="+token)
     .then(response => {
       if (!response.ok) {
         throw new Error('Network response was not ok');
@@ -129,7 +134,7 @@ async function queryWar() {
     .then(data => {
         if (data.wars.ranked !== null && (data.wars.ranked.end === null ||  data.wars.ranked.end > (Date.now()/1000) ) ) {
           data.wars.ranked.factions.forEach((faction) => {
-            if (faction.id !== 48040) {
+            if (faction.id !== factionid) {
               queryEnemyFaction(faction.id);
             }
           });
@@ -182,7 +187,8 @@ async function querySpyReport(memberid) {
 
 async function queryFactionReport() {
   const token = await getTornStatsApiToken();
-  fetch("https://www.tornstats.com/api/v2/+"+token+"/spy/faction/46708")
+  const factionid = await getFactionId();
+  fetch("https://www.tornstats.com/api/v2/+"+token+"/spy/faction/"+factionid)
     .then(response => {
       if (!response.ok) {
         throw new Error('Network response was not ok');
@@ -209,8 +215,8 @@ async function queryFactionReport() {
 }
 
 async function queryEnemyFaction(factionid) {
-  const result = await (chrome.storage.local.get('tornApiKey'));
-  fetch("https://api.torn.com/v2/faction/"+factionid+"/members?key="+result.tornApiKey+"&striptags=true")
+  const token = await getTornApiToken();
+  fetch("https://api.torn.com/v2/faction/"+factionid+"/members?key="+token+"&striptags=true")
     .then(response => {
       if (!response.ok) {
         throw new Error('Network response was not ok');
@@ -227,8 +233,9 @@ async function queryEnemyFaction(factionid) {
 
 
 async function queryFaction() {
-  const result = await (chrome.storage.local.get('tornApiKey'));
-  fetch("https://api.torn.com/v2/faction/46708/members?key="+result.tornApiKey+"&striptags=true")
+  const token = await getTornApiToken();
+  const factionid = await getFactionId();
+  fetch("https://api.torn.com/v2/faction/"+factionid+"/members?key="+token+"&striptags=true")
     .then(response => {
       if (!response.ok) {
         throw new Error('Network response was not ok');

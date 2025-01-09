@@ -71,6 +71,7 @@ async function queryFaction() {
             if ("basic" in data) {
                 document.getElementById("factionName").textContent = data.basic.name;
                 document.getElementById("factionNameContainer").classList.remove("hidden");
+                chrome.storage.local.set({ "FactionId": data.basic.id });
             } else {
                 document.getElementById("factionNameContainer").classList.add("hidden");
             }
