@@ -41,7 +41,6 @@ async function updateBattleStats() {
                     document.getElementById(`id-${index}`).insertBefore(newTargetElement, document.getElementById(`id-${index}-state`));
                 }
             } else {
-                // console.log("")
             }
         }
     });
