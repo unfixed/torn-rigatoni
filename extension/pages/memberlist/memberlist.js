@@ -126,6 +126,21 @@ async function createMemberUiObject(memberid,data) {
         newTargetLevelElement.classList.add("inline-flex", "px-2");
         newTargetLevelElement.textContent = "Level: "+data["level"];
 
+        const newTargetAttackContainerElement = document.createElement("div");
+        newTargetAttackContainerElement.classList.add("inline-flex", "px-1");
+
+        const newTargetAttackElement = document.createElement("div");
+        newTargetAttackElement.id = `id-${memberid}-attack`;
+        newTargetAttackElement.classList.add("inline-flex", "px-2", "bg-red-900", "rounded-md");
+        newTargetAttackElement.textContent = "Attack";
+
+        const newTargetAttackLinkElement = document.createElement("a");
+        newTargetAttackLinkElement.id = `id-${memberid}-attacklink`;
+        newTargetAttackLinkElement.href = `https://www.torn.com/loader2.php?sid=getInAttack&user2ID=${memberid}`;
+        newTargetAttackLinkElement.target = "_blank";
+
+
+
         const newTargetStateElement = document.createElement("div");
         newTargetStateElement.id = `id-${memberid}-state`;
         newTargetStateElement.textContent = data["state"];
@@ -153,13 +168,20 @@ async function createMemberUiObject(memberid,data) {
         newTargetUntilElement.textContent = timeLeft(data["until"],memberid);
         if (data["until"] > 0) {
             countdowns.push([memberid, data["until"]])
-        }   
+        }
 
         newTargetElement.appendChild(newTargetLastElement);
+
         newTargetElement.appendChild(newTargetLinkElement);
         newTargetLinkElement.appendChild(newTargetNameContainerElement);
         newTargetNameContainerElement.appendChild(newTargetNameElement);
+
         newTargetElement.appendChild(newTargetLevelElement);
+
+        newTargetElement.appendChild(newTargetAttackLinkElement);
+        newTargetAttackLinkElement.appendChild(newTargetAttackContainerElement);
+        newTargetAttackContainerElement.appendChild(newTargetAttackElement);
+
         newTargetElement.appendChild(newTargetStateElement);
         newTargetElement.appendChild(newTargetUntilElement);
         document.body.appendChild(newTargetElement); 
