@@ -38,7 +38,7 @@ async function updateBattleStats() {
                     newTargetElement.textContent = evalBattleStats(spies[index].spyTotal);
                     newTargetElement.className = evalBattleStatsColor(spies[index].spyTotal);
 
-                    document.getElementById(`id-${index}`).insertBefore(newTargetElement, document.getElementById(`id-${index}-state`));
+                    document.getElementById(`id-${index}`).insertBefore(newTargetElement, document.getElementById(`id-${index}-attacklink`));
                 }
             } else {
             }

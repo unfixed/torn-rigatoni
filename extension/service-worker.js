@@ -93,10 +93,10 @@ function disconnect() {
   webSocket.close();
 }
 
-function keepAlive() {
+async function keepAlive() {
   const keepAliveIntervalId = setInterval(
-    () => {
-      if (await webSocket.readyState === webSocket.OPEN ) {
+    () =>  {
+      if (webSocket.readyState === webSocket.OPEN ) {
         webSocket.send('keepalive');
       } else {
         clearInterval(keepAliveIntervalId);
@@ -188,7 +188,7 @@ async function querySpyReport(memberid) {
 async function queryFactionReport() {
   const token = await getTornStatsApiToken();
   const factionid = await getFactionId();
-  fetch("https://www.tornstats.com/api/v2/+"+token+"/spy/faction/"+factionid)
+  fetch("https://www.tornstats.com/api/v2/"+token+"/spy/faction/"+factionid)
     .then(response => {
       if (!response.ok) {
         throw new Error('Network response was not ok');

@@ -29,7 +29,7 @@ async function updateBattleStats() {
     chrome.runtime.sendMessage('get-spies', (spies) => {
         for (const index in spies) {
             if ((Object.keys(memberRoster).includes(index)) && spies[index].spyTimestamp > (Math.floor(Date.now() / 1000)  - 2592000)) {
-                
+
                 const element = document.getElementById(`id-${index}-battlestats`);
                 if (element == null ) {
                     const newTargetElement = document.createElement("div");
@@ -38,7 +38,7 @@ async function updateBattleStats() {
                     newTargetElement.textContent = evalBattleStats(spies[index].spyTotal);
                     newTargetElement.className = evalBattleStatsColor(spies[index].spyTotal);
 
-                    document.getElementById(`id-${index}`).insertBefore(newTargetElement, document.getElementById(`id-${index}-state`));
+                    document.getElementById(`id-${index}`).insertBefore(newTargetElement, document.getElementById(`id-${index}-attacklink`));
                 }
             } else {
             }
