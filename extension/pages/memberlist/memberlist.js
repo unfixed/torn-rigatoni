@@ -3,6 +3,9 @@ var timeEvals = {};
 var memberRoster = {};
 var untilMutex = {};
 
+var pinned = await chrome.storage.local.get("PinnedMembers");
+if (pinned === undefined) { pinned = [];} else { pinned = pinned["PinnedMembers"]}
+
 checkEnabled()
 
 async function checkEnabled(){
@@ -52,7 +55,6 @@ async function getUpdates() {
     
     chrome.runtime.sendMessage('get-members', (targets) => {
         for (const index in targets) {
-            
             if (!(Object.keys(memberRoster).includes(index))) {
                 memberRoster[index] = targets[index];
                 createMemberUiObject(index, targets[index]);
@@ -78,8 +80,8 @@ async function getUpdates() {
     });
     
     chrome.runtime.sendMessage('get-clients', (clients) => {
-        const element = document.getElementById(`clients-connected`);
-        element.textContent = `${clients} Clients Connected to Relay (~${32/clients}s update interval)`;
+        document.getElementById(`clients-connected`).textContent = `${clients} Clients Connected to Relay`;
+        document.getElementById(`update-interval`).textContent = `~${32/clients}s update interval`;
     });
 }
 
@@ -92,6 +94,27 @@ async function createMemberUiObject(memberid,data) {
         newTargetElement.id = `id-${memberid}`;
         newTargetElement.classList.add("flex", "py-1");
         
+        const newTargetPinElement = document.createElement("div");
+        newTargetPinElement.id = `id-${memberid}-pin`;
+        newTargetPinElement.title = `Pin ${data["name"]}`;
+        if (pinned.includes(Number(memberid))) {
+
+            newTargetElement.classList.add( `-order-[${999 - pinned.indexOf(Number(memberid))}]`);
+            newTargetPinElement.innerHTML = `<svg class="fill-blue-500 hover:fill-blue-300" width="16" height="16" xmlns="http://www.w3.org/2000/svg">
+                <rect width="4" height="16" x="10" y="-6" rx="2" ry="2" transform="rotate(45)" />
+                <rect width="16" height="4" x="4" y="0" rx="2" ry="2" transform="rotate(45)" />
+            </svg>`;
+        } else {
+
+            newTargetPinElement.innerHTML = `<svg class="fill-gray-500 hover:fill-white" width="16" height="16" xmlns="http://www.w3.org/2000/svg">
+                <rect width="4" height="16" x="6" y="0" rx="2" ry="2" />
+                <rect width="16" height="4" x="0" y="6" rx="2" ry="2" />
+            </svg>`;
+        }
+
+        newTargetPinElement.classList.add("inline-flex", "justify-center", "align-middle", "font-bold", "text-base", "h-4", "w-7");
+        newTargetPinElement.addEventListener("click", togglePinOnUser);
+
         const newTargetLastElement = document.createElement("div");
         newTargetLastElement.id = `id-${memberid}-last`;
         newTargetLastElement.title = timeSince(data["lastAction"]);
@@ -170,6 +193,7 @@ async function createMemberUiObject(memberid,data) {
             countdowns.push([memberid, data["until"]])
         }
 
+        newTargetElement.appendChild(newTargetPinElement);
         newTargetElement.appendChild(newTargetLastElement);
 
         newTargetElement.appendChild(newTargetLinkElement);
@@ -188,6 +212,37 @@ async function createMemberUiObject(memberid,data) {
         
         document.getElementById('userlist').appendChild(newTargetElement); 
     } 
+}
+
+async function togglePinOnUser(evt) {    
+    let memberid = evt.currentTarget.id.split("-")[1]
+    if ( !( pinned.includes( Number(memberid) ) )) {
+        document.getElementById(`id-${memberid}`).className = `flex py-1 -order-[${999 - pinned.length}]`;
+        document.getElementById(`id-${memberid}-pin`).innerHTML = `<svg class="fill-blue-500 hover:fill-blue-300" width="16" height="16" xmlns="http://www.w3.org/2000/svg">
+          <rect width="4" height="16" x="10" y="-6" rx="2" ry="2" transform="rotate(45)" />
+          <rect width="16" height="4" x="4" y="0" rx="2" ry="2" transform="rotate(45)" />
+        </svg>`;
+        pinned.push(Number(memberid));
+        for (const item of pinned) {
+            if (!(Object.keys(memberRoster).includes(item.toString()))) {
+                pinned.pop(item);
+            }
+        }
+        await chrome.storage.local.set({ PinnedMembers: pinned });
+    } else {
+        document.getElementById(`id-${memberid}`).className = `flex py-1`;
+        document.getElementById(`id-${memberid}-pin`).innerHTML = `<svg class="fill-gray-500 hover:fill-white" width="16" height="16" xmlns="http://www.w3.org/2000/svg">
+          <rect width="4" height="16" x="6" y="0" rx="2" ry="2" />
+          <rect width="16" height="4" x="0" y="6" rx="2" ry="2" />
+        </svg>`;
+        pinned.pop(Number(memberid));
+        for (const item of pinned) {
+            if (!(Object.keys(memberRoster).includes(item.toString()))) {
+                pinned.pop(item);
+            }
+        }
+        await chrome.storage.local.set({ PinnedMembers: pinned });
+    }
 }
 
 function timeLeft(timeStamp,memberid) {
