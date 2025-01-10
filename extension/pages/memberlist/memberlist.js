@@ -184,7 +184,9 @@ async function createMemberUiObject(memberid,data) {
 
         newTargetElement.appendChild(newTargetStateElement);
         newTargetElement.appendChild(newTargetUntilElement);
-        document.body.appendChild(newTargetElement); 
+
+        
+        document.getElementById('userlist').appendChild(newTargetElement); 
     } 
 }
 
@@ -228,13 +230,21 @@ async function evalCountDowns() {
     await countdowns.map(async (item, index) => {
         const Output = timeLeft(item[1],item[0]);
         let element = document.getElementById(`id-${item[0]}-until`);
-        if (untilMutex[item[0]] === true)
-            return
-        element.textContent = Output;
+        let state = document.getElementById(`id-${item[0]}-state`).textContent;
+        
+        if (state === "Hospital" || state === "Jail" ) {
+            if ( untilMutex[item[0]] === undefined ) {
+                element.textContent = Output;
+                if (Output === "") {
+                    countdowns.pop(index);
+                }
+            }
 
-        if (Output === "") {
+        } else {
+            element.textContent = "";
             countdowns.pop(index);
         }
+        
       });
 
 }
