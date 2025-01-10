@@ -3,8 +3,8 @@ var timeEvals = {};
 var memberRoster = {};
 var untilMutex = {};
 
-var pinned = await chrome.storage.local.get("PinnedMembers");
-if (pinned === undefined) { pinned = [];} else { pinned = pinned["PinnedMembers"]}
+var pinned = await chrome.storage.local.get("PinnedTargets");
+if (pinned === undefined) { pinned = [];} else { pinned = pinned["PinnedTargets"]}
 
 checkEnabled()
 
@@ -228,7 +228,7 @@ async function togglePinOnUser(evt) {
                 pinned.pop(item);
             }
         }
-        await chrome.storage.local.set({ PinnedMembers: pinned });
+        await chrome.storage.local.set({ PinnedTargets: pinned });
     } else {
         document.getElementById(`id-${memberid}`).className = `flex py-1`;
         document.getElementById(`id-${memberid}-pin`).innerHTML = `<svg class="fill-gray-500 hover:fill-white" width="16" height="16" xmlns="http://www.w3.org/2000/svg">
@@ -241,7 +241,7 @@ async function togglePinOnUser(evt) {
                 pinned.pop(item);
             }
         }
-        await chrome.storage.local.set({ PinnedMembers: pinned });
+        await chrome.storage.local.set({ PinnedTargets: pinned });
     }
 }
 
