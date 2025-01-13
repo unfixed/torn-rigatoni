@@ -225,7 +225,8 @@ async function togglePinOnUser(evt) {
         pinned.push(Number(memberid));
         for (const item of pinned) {
             if (!(Object.keys(memberRoster).includes(item.toString()))) {
-                pinned.pop(item);
+                let index = pinned.indexOf(item)
+                pinned.splice(index, 1); 
             }
         }
         await chrome.storage.local.set({ PinnedMembers: pinned });
@@ -235,10 +236,11 @@ async function togglePinOnUser(evt) {
           <rect width="4" height="16" x="6" y="0" rx="2" ry="2" />
           <rect width="16" height="4" x="0" y="6" rx="2" ry="2" />
         </svg>`;
-        pinned.pop(Number(memberid));
+        pinned.splice(pinned.indexOf(Number(memberid)), 1); 
         for (const item of pinned) {
             if (!(Object.keys(memberRoster).includes(item.toString()))) {
-                pinned.pop(item);
+                let index = pinned.indexOf(item)
+                pinned.splice(index, 1); 
             }
         }
         await chrome.storage.local.set({ PinnedMembers: pinned });
