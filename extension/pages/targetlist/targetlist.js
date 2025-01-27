@@ -97,7 +97,11 @@ async function createMemberUiObject(memberid,data) {
         const newTargetPinElement = document.createElement("div");
         newTargetPinElement.id = `id-${memberid}-pin`;
         newTargetPinElement.title = `Pin ${data["name"]}`;
-        if (pinned.includes(Number(memberid))) {
+
+        if ((typeof pinned) === "undefined") {
+            pinned = [];
+        }
+        if ( pinned.includes(Number(memberid))) {
 
             newTargetElement.classList.add( `-order-[${999 - pinned.indexOf(Number(memberid))}]`);
             newTargetPinElement.innerHTML = `<svg class="fill-blue-500 hover:fill-blue-300" width="16" height="16" xmlns="http://www.w3.org/2000/svg">
@@ -216,7 +220,13 @@ async function createMemberUiObject(memberid,data) {
 
 async function togglePinOnUser(evt) {    
     let memberid = evt.currentTarget.id.split("-")[1]
-    if ( !( pinned.includes( Number(memberid) ) )) {
+
+    if ((typeof pinned) === "undefined") {
+        pinned = [];
+    }
+    if ( !( pinned.includes( Number(memberid))) ) {
+
+        console.log(`Adding ${memberid}`)
         document.getElementById(`id-${memberid}`).className = `flex py-1 -order-[${999 - pinned.length}]`;
         document.getElementById(`id-${memberid}-pin`).innerHTML = `<svg class="fill-blue-500 hover:fill-blue-300" width="16" height="16" xmlns="http://www.w3.org/2000/svg">
           <rect width="4" height="16" x="10" y="-6" rx="2" ry="2" transform="rotate(45)" />
@@ -225,20 +235,26 @@ async function togglePinOnUser(evt) {
         pinned.push(Number(memberid));
         for (const item of pinned) {
             if (!(Object.keys(memberRoster).includes(item.toString()))) {
-                pinned.pop(item);
+                let index = pinned.indexOf(item)
+                pinned.splice(index, 1); 
             }
         }
         await chrome.storage.local.set({ PinnedTargets: pinned });
     } else {
+        console.log(pinned)
+        console.log(pinned.length)
+        console.log(999 - pinned.length)
+        console.log(`Removing ${memberid}`)
         document.getElementById(`id-${memberid}`).className = `flex py-1`;
         document.getElementById(`id-${memberid}-pin`).innerHTML = `<svg class="fill-gray-500 hover:fill-white" width="16" height="16" xmlns="http://www.w3.org/2000/svg">
           <rect width="4" height="16" x="6" y="0" rx="2" ry="2" />
           <rect width="16" height="4" x="0" y="6" rx="2" ry="2" />
         </svg>`;
-        pinned.pop(Number(memberid));
+        pinned.splice(pinned.indexOf(Number(memberid)), 1); 
         for (const item of pinned) {
             if (!(Object.keys(memberRoster).includes(item.toString()))) {
-                pinned.pop(item);
+                let index = pinned.indexOf(item)
+                pinned.splice(index, 1);
             }
         }
         await chrome.storage.local.set({ PinnedTargets: pinned });
