@@ -225,10 +225,6 @@ async function togglePinOnUser(evt) {
         pinned = [];
     }
     if ( !( pinned.includes( Number(memberid))) ) {
-        console.log(pinned)
-        console.log(pinned.length)
-        console.log(999 - pinned.length)
-        console.log(`Adding ${memberid}`)
         document.getElementById(`id-${memberid}`).className = `flex py-1 -order-[${999 - pinned.length}]`;
         document.getElementById(`id-${memberid}-pin`).innerHTML = `<svg class="fill-blue-500 hover:fill-blue-300" width="16" height="16" xmlns="http://www.w3.org/2000/svg">
           <rect width="4" height="16" x="10" y="-6" rx="2" ry="2" transform="rotate(45)" />
@@ -236,10 +232,6 @@ async function togglePinOnUser(evt) {
         </svg>`;
         pinned.push(Number(memberid));
     } else {
-        console.log(pinned)
-        console.log(pinned.length)
-        console.log(999 - pinned.length)
-        console.log(`Removing ${memberid}`)
         document.getElementById(`id-${memberid}`).className = `flex py-1`;
         document.getElementById(`id-${memberid}-pin`).innerHTML = `<svg class="fill-gray-500 hover:fill-white" width="16" height="16" xmlns="http://www.w3.org/2000/svg">
           <rect width="4" height="16" x="6" y="0" rx="2" ry="2" />
