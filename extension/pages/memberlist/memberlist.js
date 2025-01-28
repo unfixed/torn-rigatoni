@@ -8,6 +8,18 @@ if (pinned === undefined) { pinned = [];} else { pinned = pinned["PinnedMembers"
 
 checkEnabled()
 
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    runUpdates(message);
+  });
+
+
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+        getUpdates();
+    }
+  });
+
 async function checkEnabled(){
     const enabled = (await chrome.storage.local.get("Enabled"))["Enabled"];
     if (enabled != true) { 
@@ -15,7 +27,6 @@ async function checkEnabled(){
         setTimeout(checkEnabled,5000)
     } else {
         await getUpdates();
-        var updateMemberListUi =  setInterval(getUpdates, 500);
         var evalCountDownsUi = setInterval(evalCountDowns, 1000);
         var evalTimeSinceUi = setInterval(evalTimeSince, 5000);
         var updateBattleStatsUi = setInterval(updateBattleStats, 60000);
@@ -26,9 +37,6 @@ async function checkEnabled(){
 async function updateBattleStats() {
     const enabled = (await chrome.storage.local.get("Enabled"))["Enabled"];
     if (enabled != true) { console.log("not enabled"); return }
-
-    console.log("updateBattleStats")
-
     chrome.runtime.sendMessage('get-spies', (spies) => {
         for (const index in spies) {
             if ((Object.keys(memberRoster).includes(index)) && spies[index].spyTimestamp > (Math.floor(Date.now() / 1000)  - 2592000)) {
@@ -47,6 +55,33 @@ async function updateBattleStats() {
             }
         }
     });
+}
+
+async function runUpdates(targets) {
+    targets = JSON.parse(targets);
+
+    for (const index in targets) {
+        if (!(Object.keys(memberRoster).includes(index))) {
+            memberRoster[index] = targets[index];
+            createMemberUiObject(index, targets[index]);
+        } else {
+            if (targets[index].lastStatus !== memberRoster[index].lastStatus || targets[index].lastAction !== memberRoster[index].lastAction) {
+                memberRoster[index].lastStatus = targets[index].lastStatus;
+                memberRoster[index].lastAction = targets[index].lastAction;
+                updateLastActionUiElement(index,targets[index].lastAction,targets[index].lastStatus);
+            }
+            if (targets[index].state !== memberRoster[index].state) {
+                memberRoster[index].state = targets[index].state;
+                updateStateUiElement(index,targets[index].state);
+            }
+            if (targets[index].until !== memberRoster[index].until) {
+                memberRoster[index].until = targets[index].until;
+                updateUntilUiElement(index,targets[index].until);
+            }
+        }
+
+    }
+
 }
 
 async function getUpdates() {
@@ -81,7 +116,7 @@ async function getUpdates() {
     
     chrome.runtime.sendMessage('get-clients', (clients) => {
         document.getElementById(`clients-connected`).textContent = `${clients} Clients Connected to Relay`;
-        document.getElementById(`update-interval`).textContent = `~${32/clients}s update interval`;
+        document.getElementById(`update-interval`).textContent = `~${(32/clients).toFixed(1)}s update interval`;
     });
 }
 

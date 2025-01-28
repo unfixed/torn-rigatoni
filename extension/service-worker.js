@@ -13,6 +13,22 @@ var numClients = 1;
 
 connect();
 
+async function mesgTab(updateList, isTarget) {
+
+  chrome.tabs.query({ active: true }, ([tab]) => {
+    if (chrome.runtime.lastError)
+      console.error(chrome.runtime.lastError);
+    
+    if ( !isTarget && tab.url.includes("pages/memberlist/memberlist.html") ) {
+      chrome.tabs.sendMessage(tab.id, JSON.stringify(updateList));
+    } else if ( isTarget && tab.url.includes("pages/targetlist/targetlist.html") ) {
+      chrome.tabs.sendMessage(tab.id, JSON.stringify(updateList));
+    }
+    
+  });
+
+}
+
 chrome.runtime.onInstalled.addListener(function (object) {
   let internalUrl = chrome.runtime.getURL("pages/settings/settings.html");
 
@@ -256,6 +272,7 @@ async function processFaction(data, isTarget = false) {
   let timestamp = Date.now()
   let newList = [];
   let updateList = [];
+  let updateMemberList = [];
   for (let i=0; i< data.length; i++) {
     data[i].timestamp = timestamp;
     data[i].is_target = isTarget;
@@ -264,13 +281,27 @@ async function processFaction(data, isTarget = false) {
     newList.push(memberId);
     if (!(await compareMember( memberId, data[i] ) ))
     {
-      // console.log(data[i]);
       await updateMember(data[i]);
       updateList.push(data[i]);
+      const newMemberObj = {
+        "id": data[i].id,
+        "name": data[i].name,
+        "level": data[i].level,
+        "timestamp": data[i].timestamp,
+        "description": data[i].status.description,
+        "details": data[i].status.details,
+        "state": data[i].status.state,
+        "until": data[i].status.until,
+        "lastAction": data[i].last_action.timestamp,
+        "lastStatus": data[i].last_action.status,
+        "isTarget": data[i].is_target,
+      };
+      updateMemberList.push(newMemberObj);
     }
   };
   checkForPurge(newList, isTarget);
   mesgServer(updateList);
+  mesgTab(updateMemberList, isTarget);
   checkForMissingSpyReport(isTarget);
   console.timeEnd(`processFaction, isTarget: ${isTarget}`)
 }
@@ -285,10 +316,12 @@ async function compareMember(memberId, member) {
   }
   
   if (memberObj === undefined) {
+    console.log("compare::member did not exist")
     return false;
   }
 
   if (member.timestamp <= memberObj.timestamp) {
+    console.log("compare::member timestamp change")
     return false;
   }
 
@@ -308,11 +341,13 @@ async function compareMember(memberId, member) {
   };
 
   if (Object.keys(memberObj).length !== Object.keys(newMemberObj).length) {
+    console.log("compare::member keys numbers did not match")
     return false;
   }
 
   for (const key in memberObj) {
     if (memberObj[key] !== newMemberObj[key]) {
+      console.log(`compare::member key did not match::${key}`)
       return false;
     }
   }
