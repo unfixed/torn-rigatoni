@@ -38,14 +38,20 @@ async function saveSettings() {
         enabler.disabled = true;
         document.getElementById("TornKey-Required").classList.remove("hidden");
         chrome.storage.local.set({ "Enabled": false });
-    } else if ((!tornStatsApiKey) || tornStatsApiKey == '') {
+    } else {
+        document.getElementById("TornKey-Required").classList.add("hidden");
+    }    
+    if ((!tornStatsApiKey) || tornStatsApiKey == '') {
         let enabler = document.getElementById("Torn-Enable");
         enabler.checked = false;
         enabler.disabled = true;
         document.getElementById("TornStatsKey-Required").classList.remove("hidden");
         chrome.storage.local.set({ "Enabled": false });
-    } 
-    else {
+    }  else {
+        document.getElementById("TornStatsKey-Required").classList.add("hidden");
+    }
+    
+    if (tornApiKey != '' && tornStatsApiKey != '' && tornApiKey === tornApiKey.trim() && tornStatsApiKey === tornStatsApiKey.trim()) {
         chrome.runtime.sendMessage('get-targets');
         let enabler = document.getElementById("Torn-Enable");
         enabler.disabled = false;

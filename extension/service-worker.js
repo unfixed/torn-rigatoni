@@ -212,7 +212,6 @@ async function queryFactionReport() {
       return response.json();
     })
     .then(data => {
-
       if (data.status === true) {
         for (const id in data.faction.members) {
           if ("spy" in data.faction.members[id]) {
@@ -222,6 +221,8 @@ async function queryFactionReport() {
             }
           }
         }
+      } else {
+        console.error('Tornstats API Error:', data.message);
       }
 
     })
@@ -316,12 +317,10 @@ async function compareMember(memberId, member) {
   }
   
   if (memberObj === undefined) {
-    console.log("compare::member did not exist")
     return false;
   }
 
   if (member.timestamp <= memberObj.timestamp) {
-    console.log("compare::member timestamp change")
     return false;
   }
 
@@ -337,17 +336,14 @@ async function compareMember(memberId, member) {
     "lastAction": member["last_action"]["timestamp"],
     "lastStatus": member["last_action"]["status"],
     "isTarget": member["is_target"],
-    // "":
   };
 
   if (Object.keys(memberObj).length !== Object.keys(newMemberObj).length) {
-    console.log("compare::member keys numbers did not match")
     return false;
   }
 
   for (const key in memberObj) {
     if (memberObj[key] !== newMemberObj[key]) {
-      console.log(`compare::member key did not match::${key}`)
       return false;
     }
   }
