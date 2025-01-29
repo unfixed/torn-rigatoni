@@ -8,6 +8,7 @@ if (pinned === undefined) { pinned = [];} else { pinned = pinned["PinnedMembers"
 
 checkEnabled()
 
+chrome.runtime.sendMessage('register-membertab');
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     runUpdates(message);

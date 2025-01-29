@@ -16,13 +16,12 @@
       "service_worker": "service-worker.js"
     },
     "permissions": [
-    "storage",
-    "tabs"
+    "storage"
     ],
     "browser_specific_settings": {
       "gecko": {
         "id": "torn-helper@rigatoni.app",
         "strict_min_version": "109.0"
       }
-}
+    }
 }

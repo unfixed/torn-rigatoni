@@ -4,6 +4,9 @@ var targetList = {};
 var spyReports = {};
 var spyTimeouts = {};
 
+var targetTabs = [];
+var memberTabs = [];
+
 var backoff = 50;
 var spyReportTimeout = 0;
 var reportCount = 0;
@@ -15,18 +18,26 @@ connect();
 
 async function mesgTab(updateList, isTarget) {
 
-  chrome.tabs.query({ active: true }, ([tab]) => {
-    if (chrome.runtime.lastError)
-      console.error(chrome.runtime.lastError);
-    
-    if ( !isTarget && tab.url.includes("pages/memberlist/memberlist.html") ) {
-      chrome.tabs.sendMessage(tab.id, JSON.stringify(updateList));
-    } else if ( isTarget && tab.url.includes("pages/targetlist/targetlist.html") ) {
-      chrome.tabs.sendMessage(tab.id, JSON.stringify(updateList));
+  if (isTarget) {
+    for (const index in targetTabs) {
+      console.log(targetTabs[index])
+      chrome.tabs.sendMessage(targetTabs[index], JSON.stringify(updateList))
+      .catch(error => {
+        // console.log("failed to sent to tab, removing from targetTabs")
+        targetTabs.splice(index, 1);
+      });
     }
-    
-  });
+  } else {
+    for (const index in memberTabs) {
+      console.log(memberTabs[index])
+      chrome.tabs.sendMessage(memberTabs[index], JSON.stringify(updateList))
+      .catch(error => {
+        // console.log("failed to sent to tab, removing from memberTabs")
+        memberTabs.splice(index, 1);
+      });
+    }
 
+  }
 }
 
 chrome.runtime.onInstalled.addListener(function (object) {
@@ -49,6 +60,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse(numClients);
   } else if (message === 'get-spies') {
     sendResponse(spyReports);
+  } else if (message === 'register-membertab' && !memberTabs.includes(sender.tab.id)) {
+      memberTabs.push(sender.tab.id);
+  } else if (message === 'register-targettab' && !targetTabs.includes(sender.tab.id)) {
+      targetTabs.push(sender.tab.id);
   }
 });
 
