@@ -11,7 +11,7 @@ checkEnabled()
 chrome.runtime.sendMessage('register-membertab');
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    runUpdates(message);
+    runUpdates(JSON.parse(message));
   });
 
 
@@ -28,8 +28,10 @@ async function checkEnabled(){
         setTimeout(checkEnabled,5000)
     } else {
         await getUpdates();
+        await getRelayInfo();
         var evalCountDownsUi = setInterval(evalCountDowns, 1000);
         var evalTimeSinceUi = setInterval(evalTimeSince, 5000);
+        var updateRelayInfo = setInterval(getRelayInfo, 5000);
         var updateBattleStatsUi = setInterval(updateBattleStats, 60000);
         updateBattleStats();
     }
@@ -59,7 +61,6 @@ async function updateBattleStats() {
 }
 
 async function runUpdates(targets) {
-    targets = JSON.parse(targets);
 
     for (const index in targets) {
         if (!(Object.keys(memberRoster).includes(index))) {
@@ -83,6 +84,13 @@ async function runUpdates(targets) {
 
     }
 
+}
+
+async function getRelayInfo() {
+    chrome.runtime.sendMessage('get-clients', (clients) => {
+        document.getElementById(`clients-connected`).textContent = `${clients} Clients Connected to Relay`;
+        document.getElementById(`update-interval`).textContent = `~${(32/clients).toFixed(1)}s update interval`;
+    });
 }
 
 async function getUpdates() {
@@ -113,11 +121,6 @@ async function getUpdates() {
         }
 
         
-    });
-    
-    chrome.runtime.sendMessage('get-clients', (clients) => {
-        document.getElementById(`clients-connected`).textContent = `${clients} Clients Connected to Relay`;
-        document.getElementById(`update-interval`).textContent = `~${(32/clients).toFixed(1)}s update interval`;
     });
 }
 

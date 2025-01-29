@@ -30,14 +30,14 @@
 async function saveSettings() {
     let tornApiKey = await (document.getElementById("TornApiKey").value);
     let tornStatsApiKey = await (document.getElementById("TornStatsApiKey").value);
-    chrome.storage.local.set({ "tornApiKey": tornApiKey });
-    chrome.storage.local.set({ "tornStatsApiKey": tornStatsApiKey });
+    await chrome.storage.local.set({ "tornApiKey": tornApiKey });
+    await chrome.storage.local.set({ "tornStatsApiKey": tornStatsApiKey });
     if ((!tornApiKey) || tornApiKey == '') {
         let enabler = document.getElementById("Torn-Enable");
         enabler.checked = false;
         enabler.disabled = true;
         document.getElementById("TornKey-Required").classList.remove("hidden");
-        chrome.storage.local.set({ "Enabled": false });
+        await chrome.storage.local.set({ "Enabled": false });
     } else {
         document.getElementById("TornKey-Required").classList.add("hidden");
     }    
@@ -46,7 +46,7 @@ async function saveSettings() {
         enabler.checked = false;
         enabler.disabled = true;
         document.getElementById("TornStatsKey-Required").classList.remove("hidden");
-        chrome.storage.local.set({ "Enabled": false });
+        await chrome.storage.local.set({ "Enabled": false });
     }  else {
         document.getElementById("TornStatsKey-Required").classList.add("hidden");
     }
@@ -57,7 +57,7 @@ async function saveSettings() {
         enabler.disabled = false;
         document.getElementById("TornKey-Required").classList.add("hidden");
         document.getElementById("TornStatsKey-Required").classList.add("hidden");
-        chrome.storage.local.set({ "Enabled": enabler.checked });
+        await chrome.storage.local.set({ "Enabled": enabler.checked });
     }
 }
 

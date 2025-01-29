@@ -17,8 +17,8 @@ var numClients = 1;
 connect();
 
 async function mesgTab(updateList, isTarget) {
-
   if (isTarget) {
+    console.log("Pushing Updates to TargetList Tab(s)")
     for (const index in targetTabs) {
       console.log(targetTabs[index])
       chrome.tabs.sendMessage(targetTabs[index], JSON.stringify(updateList))
@@ -28,6 +28,7 @@ async function mesgTab(updateList, isTarget) {
       });
     }
   } else {
+    console.log("Pushing Updates to MemberList Tab(s)")
     for (const index in memberTabs) {
       console.log(memberTabs[index])
       chrome.tabs.sendMessage(memberTabs[index], JSON.stringify(updateList))
@@ -288,7 +289,7 @@ async function processFaction(data, isTarget = false) {
   let timestamp = Date.now()
   let newList = [];
   let updateList = [];
-  let updateMemberList = [];
+  let updateMemberList = {};
   for (let i=0; i< data.length; i++) {
     data[i].timestamp = timestamp;
     data[i].is_target = isTarget;
@@ -312,7 +313,7 @@ async function processFaction(data, isTarget = false) {
         "lastStatus": data[i].last_action.status,
         "isTarget": data[i].is_target,
       };
-      updateMemberList.push(newMemberObj);
+      updateMemberList[data[i].id] = newMemberObj;
     }
   };
   checkForPurge(newList, isTarget);
